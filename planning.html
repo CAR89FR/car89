@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CAR89 - Planning</title>
+    <style>
+        :root { 
+            --vert: #27ae60; 
+            --rouge: #c0392b; 
+            --gris-pro: #7f7f7f; 
+            --orange-berner: #e67e22; 
+            --ferie: #2c3e50; 
+        }
+        body { font-family: 'Segoe UI', sans-serif; background: #ecf0f1; margin: 0; padding: 10px; padding-bottom: 50px; }
+        h2 { text-align: center; color: var(--gris-pro); margin: 10px 0; text-transform: uppercase; font-size: 1.5em; font-weight: 900; }
+        
+        .day-container { background: white; border-radius: 12px; padding: 12px; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-left: 6px solid var(--gris-pro); }
+        .day-title { font-size: 1.1em; font-weight: bold; color: var(--gris-pro); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        
+        .add-btn { background: var(--gris-pro); color: white; border: none; border-radius: 50%; width: 32px; height: 32px; font-size: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .delete-btn { background: transparent; border: none; color: #ffffff; font-size: 18px; padding: 0 5px; cursor: pointer; margin-right: 5px; }
+
+        .slot { display: flex; flex-direction: column; padding: 12px; margin: 8px 0; border-radius: 8px; transition: all 0.2s; position: relative; }
+        
+        .libre { background-color: #dff9fb; border: 2px dashed var(--vert); color: var(--vert); }
+        .pris { background-color: var(--rouge); color: white; border: 2px solid var(--rouge); }
+        .berner { background-color: var(--orange-berner); color: white; border: 2px solid var(--orange-berner); }
+        .ferie-slot { background-color: var(--ferie); color: #bdc3c7; border: 2px solid var(--ferie); opacity: 0.9; pointer-events: none; }
+        
+        .slot-header { display: flex; justify-content: space-between; align-items: center; font-size: 1.1em; font-weight: bold; }
+        .details { width: 100%; border: none; background: rgba(255,255,255,0.2); color: white; font-size: 15px; margin-top: 8px; padding: 10px; border-radius: 5px; box-sizing: border-box; display: none; }
+        .slot.pris .details, .slot.berner .details { display: block; }
+        
+        .nav-btns { display: flex; justify-content: space-around; margin-bottom: 15px; }
+        button.nav { padding: 10px 15px; border-radius: 20px; border: none; background: var(--gris-pro); color: white; font-weight: bold; font-size: 0.9em; min-width: 120px; }
+    </style>
+</head>
+<body>
+
+<h2>CAR89</h2>
+
+<div class="nav-btns">
+    <button class="nav" onclick="changerPeriode(-14)">Précédent</button>
+    <button class="nav" onclick="changerPeriode(14)">Suivant</button>
+</div>
+
+<div id="planning"></div>
+
+<script>
+    let decalageJours = 0;
+
+    function getFeries(annee) {
+        const G = annee % 19; const C = Math.floor(annee / 100);
+        const H = (C - Math.floor(C / 4) - Math.floor((8 * C + 13) / 25) + 19 * G + 15) % 30;
+        const I = H - Math.floor(H / 28) * (1 - Math.floor(H / 28) * Math.floor(29 / (H + 1)) * Math.floor((21 - G) / 11));
+        const J = (annee + Math.floor(annee / 4) + I + 2 - C + Math.floor(C / 4)) % 7;
+        const L = I - J; const moisPaques = 3 + Math.floor((L + 40) / 44); const jourPaques = L + 28 - 31 * Math.floor(moisPaques / 4);
+        const paques = new Date(annee, moisPaques - 1, jourPaques);
+        const lundiPaques = new Date(paques); lundiPaques.setDate(paques.getDate() + 1);
+        const ascension = new Date(paques); ascension.setDate(paques.getDate() + 39);
+        const pentecote = new Date(paques); pentecote.setDate(paques.getDate() + 50);
+
+        return [
+            `${annee}-01-01`, `${annee}-05-01`, `${annee}-05-08`, `${annee}-07-14`, `${annee}-08-15`, `${annee}-11-01`, `${annee}-11-11`, `${annee}-12-25`,
+            lundiPaques.toISOString().split('T')[0], ascension.toISOString().split('T')[0], pentecote.toISOString().split('T')[0]
+        ];
+    }
+
+    function afficherPlanning() {
+        const container = document.getElementById('planning');
+        container.innerHTML = "";
+        const feries = getFeries(new Date().getFullYear());
+        
+        for (let i = 0; i < 14; i++) {
+            let date = new Date();
+            date.setDate(date.getDate() + i + decalageJours);
+            if (date.getDay() === 0) continue; 
+
+            let dateString = date.toLocaleDateString('fr-FR', {weekday: 'long', day: 'numeric', month: 'long'});
+            let isoDate = date.toISOString().split('T')[0];
+            let isFerie = feries.includes(isoDate);
+            let jourSemaine = date.getDay();
+
+            let dayDiv = document.createElement('div');
+            dayDiv.className = 'day-container';
+            dayDiv.innerHTML = `<div class="day-title"><span>${dateString} ${isFerie ? ' (FÉRIÉ)' : ''}</span>
+                ${!isFerie ? `<button class="add-btn" onclick="ajouterCreneauExtra('${isoDate}')">+</button>` : ''}</div>`;
+
+            let slots = JSON.parse(localStorage.getItem(`slots-${isoDate}`)) || ["MATIN", "APRÈS-MIDI"];
+            
+            slots.forEach((nomMoment, index) => {
+                let id = `data-${isoDate}-${index}`;
+                let savedValue = localStorage.getItem(id);
+                if (isFerie) { savedValue = "JOUR FÉRIÉ"; }
+                else if ((jourSemaine === 2 || jourSemaine === 3) && savedValue === null) {
+                    savedValue = "BERNER"; localStorage.setItem(id, "BERNER");
+                }
+                creerSlotElement(dayDiv, isoDate, nomMoment, index, savedValue, isFerie);
+            });
+            container.appendChild(dayDiv);
+        }
+    }
+
+    function creerSlotElement(parent, dateKey, label, index, value, isFerie) {
+        let id = `data-${dateKey}-${index}`;
+        let isPris = value !== "" && value !== null;
+        let slot = document.createElement('div');
+        
+        let classe = isFerie ? "ferie-slot" : (isPris ? (value === "BERNER" ? "berner" : "pris") : "libre");
+        slot.className = `slot ${classe}`;
+        if(!isFerie) {
+            slot.onclick = function(e) { if(e.target.tagName !== 'INPUT' && !e.target.classList.contains('delete-btn')) toggleSlot(this, id); };
+        }
+        
+        let deleteHtml = (index > 1 && !isFerie) ? `<button class="delete-btn" onclick="supprimerExtra('${dateKey}', ${index})">✕</button>` : '';
+
+        slot.innerHTML = `<div class="slot-header"><div style="display:flex; align-items:center;">${deleteHtml} <span>${label}</span></div></div>
+            <input class="details" id="input-${id}" value="${value || ''}" ${isFerie ? 'disabled' : ''} oninput="saveData('${id}', this.value)">`;
+        parent.appendChild(slot);
+    }
+
+    function ajouterCreneauExtra(dateKey) {
+        let slots = JSON.parse(localStorage.getItem(`slots-${dateKey}`)) || ["MATIN", "APRÈS-MIDI"];
+        slots.push("EXTRA"); localStorage.setItem(`slots-${dateKey}`, JSON.stringify(slots));
+        afficherPlanning();
+    }
+
+    function supprimerExtra(dateKey, index) {
+        if(confirm("Supprimer ce créneau EXTRA ?")) {
+            let slots = JSON.parse(localStorage.getItem(`slots-${dateKey}`));
+            slots.splice(index, 1); localStorage.setItem(`slots-${dateKey}`, JSON.stringify(slots));
+            localStorage.removeItem(`data-${dateKey}-${index}`); afficherPlanning();
+        }
+    }
+
+    function toggleSlot(el, id) {
+        if (el.classList.contains('libre')) { el.classList.remove('libre'); el.classList.add('pris'); }
+        else {
+            if(confirm("Libérer ce créneau ?")) {
+                el.classList.remove('pris', 'berner'); el.classList.add('libre');
+                document.getElementById('input-' + id).value = ""; localStorage.setItem(id, "");
+            }
+        }
+    }
+
+    function saveData(id, val) { localStorage.setItem(id, val); }
+    function changerPeriode(jours) { decalageJours += jours; afficherPlanning(); window.scrollTo(0,0); }
+
+    afficherPlanning();
+</script>
+</body>
+</html>
