@@ -21,16 +21,34 @@
         .add-btn { background: var(--gris-pro); color: white; border: none; border-radius: 50%; width: 32px; height: 32px; font-size: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
         .delete-btn { background: transparent; border: none; color: #ffffff; font-size: 18px; padding: 0 5px; cursor: pointer; margin-right: 5px; }
 
-        .slot { display: flex; flex-direction: column; padding: 12px; margin: 8px 0; border-radius: 8px; transition: all 0.2s; position: relative; }
+        .slot { display: flex; flex-direction: column; padding: 12px; margin: 8px 0; border-radius: 8px; transition: all 0.2s; position: relative; min-height: 50px; }
         
         .libre { background-color: #dff9fb; border: 2px dashed var(--vert); color: var(--vert); }
         .pris { background-color: var(--rouge); color: white; border: 2px solid var(--rouge); }
         .berner { background-color: var(--orange-berner); color: white; border: 2px solid var(--orange-berner); }
         .ferie-slot { background-color: var(--ferie); color: #bdc3c7; border: 2px solid var(--ferie); opacity: 0.9; pointer-events: none; }
         
-        .slot-header { display: flex; justify-content: space-between; align-items: center; font-size: 1.1em; font-weight: bold; }
-        .details { width: 100%; border: none; background: rgba(255,255,255,0.2); color: white; font-size: 15px; margin-top: 8px; padding: 10px; border-radius: 5px; box-sizing: border-box; display: none; }
+        .slot-header { display: flex; justify-content: space-between; align-items: center; font-size: 1.1em; font-weight: bold; margin-bottom: 5px; }
+
+        /* Modification pour le retour à la ligne automatique */
+        .details { 
+            width: 100%; 
+            border: none; 
+            background: rgba(255,255,255,0.2); 
+            color: white; 
+            font-size: 15px; 
+            margin-top: 5px; 
+            padding: 8px; 
+            border-radius: 5px; 
+            box-sizing: border-box; 
+            display: none;
+            resize: none; /* Empêche l'utilisateur de redimensionner manuellement */
+            font-family: inherit;
+            overflow: hidden; /* Cache la barre de défilement */
+        }
+        
         .slot.pris .details, .slot.berner .details { display: block; }
+        .slot.libre .details { display: none; }
         
         .nav-btns { display: flex; justify-content: space-around; margin-bottom: 15px; }
         button.nav { padding: 10px 15px; border-radius: 20px; border: none; background: var(--gris-pro); color: white; font-weight: bold; font-size: 0.9em; min-width: 120px; }
@@ -65,6 +83,11 @@
             `${annee}-01-01`, `${annee}-05-01`, `${annee}-05-08`, `${annee}-07-14`, `${annee}-08-15`, `${annee}-11-01`, `${annee}-11-11`, `${annee}-12-25`,
             lundiPaques.toISOString().split('T')[0], ascension.toISOString().split('T')[0], pentecote.toISOString().split('T')[0]
         ];
+    }
+
+    function autoResize(el) {
+        el.style.height = 'auto';
+        el.style.height = el.scrollHeight + 'px';
     }
 
     function afficherPlanning() {
@@ -109,15 +132,36 @@
         
         let classe = isFerie ? "ferie-slot" : (isPris ? (value === "BERNER" ? "berner" : "pris") : "libre");
         slot.className = `slot ${classe}`;
+        
         if(!isFerie) {
-            slot.onclick = function(e) { if(e.target.tagName !== 'INPUT' && !e.target.classList.contains('delete-btn')) toggleSlot(this, id); };
+            slot.onclick = function(e) { 
+                if(e.target.tagName !== 'TEXTAREA' && !e.target.classList.contains('delete-btn')) toggleSlot(this, id); 
+            };
         }
         
         let deleteHtml = (index > 1 && !isFerie) ? `<button class="delete-btn" onclick="supprimerExtra('${dateKey}', ${index})">✕</button>` : '';
 
-        slot.innerHTML = `<div class="slot-header"><div style="display:flex; align-items:center;">${deleteHtml} <span>${label}</span></div></div>
-            <input class="details" id="input-${id}" value="${value || ''}" ${isFerie ? 'disabled' : ''} oninput="saveData('${id}', this.value)">`;
+        // Utilisation d'un Textarea au lieu d'un Input pour le retour à la ligne
+        slot.innerHTML = `
+            <div class="slot-header">
+                <div style="display:flex; align-items:center;">${deleteHtml} <span>${label}</span></div>
+            </div>
+            <textarea class="details" id="input-${id}" 
+                placeholder="Infos client..." 
+                ${isFerie ? 'disabled' : ''} 
+                oninput="saveData('${id}', this.value); autoResize(this);"
+                rows="1"
+                onclick="event.stopPropagation()">${value || ''}</textarea>`;
+        
         parent.appendChild(slot);
+        
+        // Ajuster la hauteur initiale si du texte existe déjà
+        if (isPris) {
+            setTimeout(() => {
+                let txt = document.getElementById(`input-${id}`);
+                if(txt) autoResize(txt);
+            }, 10);
+        }
     }
 
     function ajouterCreneauExtra(dateKey) {
@@ -135,11 +179,19 @@
     }
 
     function toggleSlot(el, id) {
-        if (el.classList.contains('libre')) { el.classList.remove('libre'); el.classList.add('pris'); }
+        if (el.classList.contains('libre')) { 
+            el.classList.remove('libre'); 
+            el.classList.add('pris');
+            let txt = document.getElementById('input-' + id);
+            setTimeout(() => autoResize(txt), 10);
+        }
         else {
             if(confirm("Libérer ce créneau ?")) {
                 el.classList.remove('pris', 'berner'); el.classList.add('libre');
-                document.getElementById('input-' + id).value = ""; localStorage.setItem(id, "");
+                let txt = document.getElementById('input-' + id);
+                txt.value = ""; 
+                txt.style.height = 'auto';
+                localStorage.setItem(id, "");
             }
         }
     }
