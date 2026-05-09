@@ -68,7 +68,7 @@
     let decalageJours = 0;
 
     function getFeries(annee) {
-        // Algorithme de Butcher-Meeus pour un calcul de Pâques sans erreur
+        // Algorithme de Butcher-Meeus (calcul exact de Pâques)
         const a = annee % 19;
         const b = Math.floor(annee / 100);
         const c = annee % 100;
@@ -81,10 +81,10 @@
         const k = c % 4;
         const l = (32 + 2 * e + 2 * i - h - k) % 7;
         const m = Math.floor((a + 11 * h + 22 * l) / 451);
-        const mois = Math.floor((h + l - 7 * m + 114) / 31);
-        const jour = ((h + l - 7 * m + 114) % 31) + 1;
+        const moisPaques = Math.floor((h + l - 7 * m + 114) / 31);
+        const jourPaques = ((h + l - 7 * m + 114) % 31) + 1;
 
-        const paques = new Date(annee, mois - 1, jour);
+        const paques = new Date(annee, moisPaques - 1, jourPaques);
         const lundiPaques = new Date(paques); lundiPaques.setDate(paques.getDate() + 1);
         const ascension = new Date(paques); ascension.setDate(paques.getDate() + 39);
         const pentecote = new Date(paques); pentecote.setDate(paques.getDate() + 50);
@@ -111,12 +111,13 @@
             date.setDate(date.getDate() + i + decalageJours);
             if (date.getDay() === 0) continue; 
 
-            let dateString = date.toLocaleDateString('fr-FR', {weekday: 'long', day: 'numeric', month: 'long'});
             let isoDate = date.toISOString().split('T')[0];
             
-            // Calcul des fériés dynamique selon l'année du jour affiché
+            // CORRECTION : On calcule les fériés pour l'année spécifique du jour affiché
             let feries = getFeries(date.getFullYear());
             let isFerie = feries.includes(isoDate);
+            
+            let dateString = date.toLocaleDateString('fr-FR', {weekday: 'long', day: 'numeric', month: 'long'});
             let jourSemaine = date.getDay();
 
             let dayDiv = document.createElement('div');
@@ -131,8 +132,7 @@
                 let savedValue = localStorage.getItem(id);
                 if (isFerie) { 
                     savedValue = "JOUR FÉRIÉ"; 
-                }
-                else if ((jourSemaine === 2 || jourSemaine === 3) && savedValue === null) {
+                } else if ((jourSemaine === 2 || jourSemaine === 3) && savedValue === null) {
                     savedValue = "BERNER"; 
                     localStorage.setItem(id, "BERNER");
                 }
@@ -181,18 +181,15 @@
 
     function ajouterCreneauExtra(dateKey) {
         let slots = JSON.parse(localStorage.getItem(`slots-${dateKey}`)) || ["MATIN", "APRÈS-MIDI"];
-        slots.push("EXTRA"); 
-        localStorage.setItem(`slots-${dateKey}`, JSON.stringify(slots));
+        slots.push("EXTRA"); localStorage.setItem(`slots-${dateKey}`, JSON.stringify(slots));
         afficherPlanning();
     }
 
     function supprimerExtra(dateKey, index) {
         if(confirm("Supprimer ce créneau EXTRA ?")) {
             let slots = JSON.parse(localStorage.getItem(`slots-${dateKey}`));
-            slots.splice(index, 1); 
-            localStorage.setItem(`slots-${dateKey}`, JSON.stringify(slots));
-            localStorage.removeItem(`data-${dateKey}-${index}`); 
-            afficherPlanning();
+            slots.splice(index, 1); localStorage.setItem(`slots-${dateKey}`, JSON.stringify(slots));
+            localStorage.removeItem(`data-${dateKey}-${index}`); afficherPlanning();
         }
     }
 
@@ -205,8 +202,7 @@
         }
         else {
             if(confirm("Libérer ce créneau ?")) {
-                el.classList.remove('pris', 'berner'); 
-                el.classList.add('libre');
+                el.classList.remove('pris', 'berner'); el.classList.add('libre');
                 let txt = document.getElementById('input-' + id);
                 txt.value = ""; 
                 txt.style.height = 'auto';
