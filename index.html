@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CAR89 - Planning CorrigÃ©</title>
+    <title>CAR89 - Planning Corrigé</title>
     <style>
         :root { 
             --vert: #27ae60; 
@@ -58,7 +58,7 @@
 <h2>CAR89</h2>
 
 <div class="nav-btns">
-    <button class="nav" onclick="changerPeriode(-14)">PrÃ©cÃ©dent</button>
+    <button class="nav" onclick="changerPeriode(-14)">Précédent</button>
     <button class="nav" onclick="changerPeriode(14)">Suivant</button>
 </div>
 
@@ -68,7 +68,7 @@
     let decalageJours = 0;
 
     function getFeries(annee) {
-        // Algorithme de Butcher-Meeus (PrÃ©cis)
+        // Algorithme de Butcher-Meeus pour un calcul de Pâques sans erreur
         const a = annee % 19;
         const b = Math.floor(annee / 100);
         const c = annee % 100;
@@ -91,7 +91,9 @@
 
         return [
             `${annee}-01-01`, `${annee}-05-01`, `${annee}-05-08`, `${annee}-07-14`, `${annee}-08-15`, `${annee}-11-01`, `${annee}-11-11`, `${annee}-12-25`,
-            lundiPaques.toISOString().split('T')[0], ascension.toISOString().split('T')[0], pentecote.toISOString().split('T')[0]
+            lundiPaques.toISOString().split('T')[0], 
+            ascension.toISOString().split('T')[0], 
+            pentecote.toISOString().split('T')[0]
         ];
     }
 
@@ -111,23 +113,28 @@
 
             let dateString = date.toLocaleDateString('fr-FR', {weekday: 'long', day: 'numeric', month: 'long'});
             let isoDate = date.toISOString().split('T')[0];
+            
+            // Calcul des fériés dynamique selon l'année du jour affiché
             let feries = getFeries(date.getFullYear());
             let isFerie = feries.includes(isoDate);
             let jourSemaine = date.getDay();
 
             let dayDiv = document.createElement('div');
             dayDiv.className = 'day-container';
-            dayDiv.innerHTML = `<div class="day-title"><span>\${dateString} \${isFerie ? ' (FÃ‰RIÃ‰)' : ''}</span>
-                \${!isFerie ? \`<button class="add-btn" onclick="ajouterCreneauExtra('\${isoDate}')">+</button>\` : ''}</div>`;
+            dayDiv.innerHTML = `<div class="day-title"><span>${dateString} ${isFerie ? ' (FÉRIÉ)' : ''}</span>
+                ${!isFerie ? `<button class="add-btn" onclick="ajouterCreneauExtra('${isoDate}')">+</button>` : ''}</div>`;
 
-            let slots = JSON.parse(localStorage.getItem(\`slots-\${isoDate}\`)) || ["MATIN", "APRÃˆS-MIDI"];
+            let slots = JSON.parse(localStorage.getItem(`slots-${isoDate}`)) || ["MATIN", "APRÈS-MIDI"];
             
             slots.forEach((nomMoment, index) => {
-                let id = \`data-\${isoDate}-\${index}\`;
+                let id = `data-${isoDate}-${index}`;
                 let savedValue = localStorage.getItem(id);
-                if (isFerie) { savedValue = "JOUR FÃ‰RIÃ‰"; }
+                if (isFerie) { 
+                    savedValue = "JOUR FÉRIÉ"; 
+                }
                 else if ((jourSemaine === 2 || jourSemaine === 3) && savedValue === null) {
-                    savedValue = "BERNER"; localStorage.setItem(id, "BERNER");
+                    savedValue = "BERNER"; 
+                    localStorage.setItem(id, "BERNER");
                 }
                 creerSlotElement(dayDiv, isoDate, nomMoment, index, savedValue, isFerie);
             });
@@ -136,12 +143,12 @@
     }
 
     function creerSlotElement(parent, dateKey, label, index, value, isFerie) {
-        let id = \`data-\${dateKey}-\${index}\`;
+        let id = `data-${dateKey}-${index}`;
         let isPris = value !== "" && value !== null;
         let slot = document.createElement('div');
         
         let classe = isFerie ? "ferie-slot" : (isPris ? (value === "BERNER" ? "berner" : "pris") : "libre");
-        slot.className = \`slot \${classe}\`;
+        slot.className = `slot ${classe}`;
         
         if(!isFerie) {
             slot.onclick = function(e) { 
@@ -149,40 +156,43 @@
             };
         }
         
-        let deleteHtml = (index > 1 && !isFerie) ? \`<button class="delete-btn" onclick="supprimerExtra('\${dateKey}', \${index})">âœ•</button>\` : '';
+        let deleteHtml = (index > 1 && !isFerie) ? `<button class="delete-btn" onclick="supprimerExtra('${dateKey}', ${index})">✕</button>` : '';
 
-        slot.innerHTML = \`
+        slot.innerHTML = `
             <div class="slot-header">
-                <div style="display:flex; align-items:center;">\${deleteHtml} <span>\${label}</span></div>
+                <div style="display:flex; align-items:center;">${deleteHtml} <span>${label}</span></div>
             </div>
-            <textarea class="details" id="input-\${id}" 
+            <textarea class="details" id="input-${id}" 
                 placeholder="Infos client..." 
-                \${isFerie ? 'disabled' : ''} 
-                oninput="saveData('\${id}', this.value); autoResize(this);"
+                ${isFerie ? 'disabled' : ''} 
+                oninput="saveData('${id}', this.value); autoResize(this);"
                 rows="1"
-                onclick="event.stopPropagation()">\${value || ''}</textarea>\`;
+                onclick="event.stopPropagation()">${value || ''}</textarea>`;
         
         parent.appendChild(slot);
         
         if (isPris) {
             setTimeout(() => {
-                let txt = document.getElementById(\`input-\${id}\`);
+                let txt = document.getElementById(`input-${id}`);
                 if(txt) autoResize(txt);
             }, 10);
         }
     }
 
     function ajouterCreneauExtra(dateKey) {
-        let slots = JSON.parse(localStorage.getItem(\`slots-\${dateKey}\`)) || ["MATIN", "APRÃˆS-MIDI"];
-        slots.push("EXTRA"); localStorage.setItem(\`slots-\${dateKey}\`, JSON.stringify(slots));
+        let slots = JSON.parse(localStorage.getItem(`slots-${dateKey}`)) || ["MATIN", "APRÈS-MIDI"];
+        slots.push("EXTRA"); 
+        localStorage.setItem(`slots-${dateKey}`, JSON.stringify(slots));
         afficherPlanning();
     }
 
     function supprimerExtra(dateKey, index) {
-        if(confirm("Supprimer ce crÃ©neau EXTRA ?")) {
-            let slots = JSON.parse(localStorage.getItem(\`slots-\${dateKey}\`));
-            slots.splice(index, 1); localStorage.setItem(\`slots-\${dateKey}\`, JSON.stringify(slots));
-            localStorage.removeItem(\`data-\${dateKey}-\${index}\`); afficherPlanning();
+        if(confirm("Supprimer ce créneau EXTRA ?")) {
+            let slots = JSON.parse(localStorage.getItem(`slots-${dateKey}`));
+            slots.splice(index, 1); 
+            localStorage.setItem(`slots-${dateKey}`, JSON.stringify(slots));
+            localStorage.removeItem(`data-${dateKey}-${index}`); 
+            afficherPlanning();
         }
     }
 
@@ -194,8 +204,9 @@
             setTimeout(() => autoResize(txt), 10);
         }
         else {
-            if(confirm("LibÃ©rer ce crÃ©neau ?")) {
-                el.classList.remove('pris', 'berner'); el.classList.add('libre');
+            if(confirm("Libérer ce créneau ?")) {
+                el.classList.remove('pris', 'berner'); 
+                el.classList.add('libre');
                 let txt = document.getElementById('input-' + id);
                 txt.value = ""; 
                 txt.style.height = 'auto';
