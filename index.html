@@ -14,41 +14,19 @@
         }
         body { font-family: 'Segoe UI', sans-serif; background: #ecf0f1; margin: 0; padding: 10px; padding-bottom: 50px; }
         h2 { text-align: center; color: var(--gris-pro); margin: 10px 0; text-transform: uppercase; font-size: 1.5em; font-weight: 900; }
-        
         .day-container { background: white; border-radius: 12px; padding: 12px; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-left: 6px solid var(--gris-pro); }
         .day-title { font-size: 1.1em; font-weight: bold; color: var(--gris-pro); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
-        
         .add-btn { background: var(--gris-pro); color: white; border: none; border-radius: 50%; width: 32px; height: 32px; font-size: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
         .delete-btn { background: transparent; border: none; color: #ffffff; font-size: 18px; padding: 0 5px; cursor: pointer; margin-right: 5px; }
-
         .slot { display: flex; flex-direction: column; padding: 12px; margin: 8px 0; border-radius: 8px; transition: all 0.2s; position: relative; min-height: 50px; }
-        
         .libre { background-color: #dff9fb; border: 2px dashed var(--vert); color: var(--vert); }
         .pris { background-color: var(--rouge); color: white; border: 2px solid var(--rouge); }
         .berner { background-color: var(--orange-berner); color: white; border: 2px solid var(--orange-berner); }
         .ferie-slot { background-color: var(--ferie); color: #bdc3c7; border: 2px solid var(--ferie); opacity: 0.9; pointer-events: none; }
-        
         .slot-header { display: flex; justify-content: space-between; align-items: center; font-size: 1.1em; font-weight: bold; margin-bottom: 5px; }
-
-        .details { 
-            width: 100%; 
-            border: none; 
-            background: rgba(255,255,255,0.2); 
-            color: white; 
-            font-size: 15px; 
-            margin-top: 5px; 
-            padding: 8px; 
-            border-radius: 5px; 
-            box-sizing: border-box; 
-            display: none;
-            resize: none; 
-            font-family: inherit;
-            overflow: hidden; 
-        }
-        
+        .details { width: 100%; border: none; background: rgba(255,255,255,0.2); color: white; font-size: 15px; margin-top: 5px; padding: 8px; border-radius: 5px; box-sizing: border-box; display: none; resize: none; font-family: inherit; overflow: hidden; }
         .slot.pris .details, .slot.berner .details { display: block; }
         .slot.libre .details { display: none; }
-        
         .nav-btns { display: flex; justify-content: space-around; margin-bottom: 15px; }
         button.nav { padding: 10px 15px; border-radius: 20px; border: none; background: var(--gris-pro); color: white; font-weight: bold; font-size: 0.9em; min-width: 120px; }
     </style>
@@ -68,7 +46,6 @@
     let decalageJours = 0;
 
     function getFeries(annee) {
-        // Algorithme de Butcher-Meeus (calcul exact de Pâques)
         const a = annee % 19;
         const b = Math.floor(annee / 100);
         const c = annee % 100;
@@ -81,10 +58,10 @@
         const k = c % 4;
         const l = (32 + 2 * e + 2 * i - h - k) % 7;
         const m = Math.floor((a + 11 * h + 22 * l) / 451);
-        const moisPaques = Math.floor((h + l - 7 * m + 114) / 31);
-        const jourPaques = ((h + l - 7 * m + 114) % 31) + 1;
+        const mois = Math.floor((h + l - 7 * m + 114) / 31);
+        const jour = ((h + l - 7 * m + 114) % 31) + 1;
 
-        const paques = new Date(annee, moisPaques - 1, jourPaques);
+        const paques = new Date(annee, mois - 1, jour);
         const lundiPaques = new Date(paques); lundiPaques.setDate(paques.getDate() + 1);
         const ascension = new Date(paques); ascension.setDate(paques.getDate() + 39);
         const pentecote = new Date(paques); pentecote.setDate(paques.getDate() + 50);
@@ -112,11 +89,8 @@
             if (date.getDay() === 0) continue; 
 
             let isoDate = date.toISOString().split('T')[0];
-            
-            // CORRECTION : On calcule les fériés pour l'année spécifique du jour affiché
             let feries = getFeries(date.getFullYear());
             let isFerie = feries.includes(isoDate);
-            
             let dateString = date.toLocaleDateString('fr-FR', {weekday: 'long', day: 'numeric', month: 'long'});
             let jourSemaine = date.getDay();
 
@@ -130,12 +104,19 @@
             slots.forEach((nomMoment, index) => {
                 let id = `data-${isoDate}-${index}`;
                 let savedValue = localStorage.getItem(id);
+
+                // --- LE NETTOYEUR (CORRECTION) ---
+                // Si c'est le 13 mai, on force à enlever "JOUR FÉRIÉ" s'il y était
+                if (isoDate === "2026-05-13" && savedValue === "JOUR FÉRIÉ") {
+                    savedValue = null; localStorage.removeItem(id);
+                }
+                // Si c'est le 25 mai, on force l'affichage FÉRIÉ
                 if (isFerie) { 
                     savedValue = "JOUR FÉRIÉ"; 
                 } else if ((jourSemaine === 2 || jourSemaine === 3) && savedValue === null) {
-                    savedValue = "BERNER"; 
-                    localStorage.setItem(id, "BERNER");
+                    savedValue = "BERNER"; localStorage.setItem(id, "BERNER");
                 }
+
                 creerSlotElement(dayDiv, isoDate, nomMoment, index, savedValue, isFerie);
             });
             container.appendChild(dayDiv);
@@ -146,7 +127,6 @@
         let id = `data-${dateKey}-${index}`;
         let isPris = value !== "" && value !== null;
         let slot = document.createElement('div');
-        
         let classe = isFerie ? "ferie-slot" : (isPris ? (value === "BERNER" ? "berner" : "pris") : "libre");
         slot.className = `slot ${classe}`;
         
@@ -157,26 +137,10 @@
         }
         
         let deleteHtml = (index > 1 && !isFerie) ? `<button class="delete-btn" onclick="supprimerExtra('${dateKey}', ${index})">✕</button>` : '';
-
-        slot.innerHTML = `
-            <div class="slot-header">
-                <div style="display:flex; align-items:center;">${deleteHtml} <span>${label}</span></div>
-            </div>
-            <textarea class="details" id="input-${id}" 
-                placeholder="Infos client..." 
-                ${isFerie ? 'disabled' : ''} 
-                oninput="saveData('${id}', this.value); autoResize(this);"
-                rows="1"
-                onclick="event.stopPropagation()">${value || ''}</textarea>`;
-        
+        slot.innerHTML = `<div class="slot-header"><div style="display:flex; align-items:center;">${deleteHtml} <span>${label}</span></div></div>
+            <textarea class="details" id="input-${id}" placeholder="Infos client..." ${isFerie ? 'disabled' : ''} oninput="saveData('${id}', this.value); autoResize(this);" rows="1" onclick="event.stopPropagation()">${value || ''}</textarea>`;
         parent.appendChild(slot);
-        
-        if (isPris) {
-            setTimeout(() => {
-                let txt = document.getElementById(`input-${id}`);
-                if(txt) autoResize(txt);
-            }, 10);
-        }
+        if (isPris) { setTimeout(() => { let txt = document.getElementById(`input-${id}`); if(txt) autoResize(txt); }, 10); }
     }
 
     function ajouterCreneauExtra(dateKey) {
@@ -194,26 +158,12 @@
     }
 
     function toggleSlot(el, id) {
-        if (el.classList.contains('libre')) { 
-            el.classList.remove('libre'); 
-            el.classList.add('pris');
-            let txt = document.getElementById('input-' + id);
-            setTimeout(() => autoResize(txt), 10);
-        }
-        else {
-            if(confirm("Libérer ce créneau ?")) {
-                el.classList.remove('pris', 'berner'); el.classList.add('libre');
-                let txt = document.getElementById('input-' + id);
-                txt.value = ""; 
-                txt.style.height = 'auto';
-                localStorage.setItem(id, "");
-            }
-        }
+        if (el.classList.contains('libre')) { el.classList.remove('libre'); el.classList.add('pris'); let txt = document.getElementById('input-' + id); setTimeout(() => autoResize(txt), 10); }
+        else { if(confirm("Libérer ce créneau ?")) { el.classList.remove('pris', 'berner'); el.classList.add('libre'); let txt = document.getElementById('input-' + id); txt.value = ""; txt.style.height = 'auto'; localStorage.setItem(id, ""); } }
     }
 
     function saveData(id, val) { localStorage.setItem(id, val); }
     function changerPeriode(jours) { decalageJours += jours; afficherPlanning(); window.scrollTo(0,0); }
-
     afficherPlanning();
 </script>
 </body>
